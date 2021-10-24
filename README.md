@@ -18,16 +18,16 @@ A service to convert currencies.
 
 ```json
 {
-    "success":"true",
-    "update": { 
-        "last_update":"2021-10-24T00:02:31.000+00:00", 
-        "next_update":"2021-10-25T00:33:01.000+00:00"
-    },
-    "payload": {
-        "result":"$7.38",
-        "result_raw":"7.38",
-        "symbol":"$"
-    }
+  "success": "true",
+  "update": {
+    "last_update": "2021-10-24T00:02:31.000+00:00",
+    "next_update": "2021-10-25T00:33:01.000+00:00"
+  },
+  "payload": {
+    "result": "$7.38",
+    "result_raw": "7.38",
+    "symbol": "$"
+  }
 }
 
 ```
