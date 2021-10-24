@@ -1,9 +1,11 @@
 class MainController < ApplicationController
   def calculate
+    # calculate conversion of currency
     response = {}
     from = params[:from_currency].upcase
     to = params[:to_currency].upcase
 
+    # invalid amount
     begin
       amount = BigDecimal(params[:amount])
     rescue ArgumentError
@@ -13,11 +15,13 @@ class MainController < ApplicationController
   
     conversion_rates = Rails.cache.read('exchange_conversion_rates')
 
+    # rates are not yet populated
     if conversion_rates.nil?
       response['status'] = 'no data'
       render json: response.to_json and return
     end
 
+    # inputted currencies are not valid
     if not (conversion_rates[from] and conversion_rates[to])
       response['status'] = 'unsupported currency'
       render json: response.to_json and return
@@ -39,6 +43,7 @@ class MainController < ApplicationController
   end
 
   def rates
+    # return raw rates
     conversion_rates = Rails.cache.read('exchange_conversion_rates')
 
     if conversion_rates.nil?
@@ -49,6 +54,7 @@ class MainController < ApplicationController
     response['result'] = conversion_rates
     response['last_update'] = Rails.cache.read('exchange_last_update').to_datetime
     response['next_update'] = Rails.cache.read('exchange_next_update').to_datetime
+    response['status'] = 'success'
 
     render json: response.to_json and return
   end
