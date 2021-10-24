@@ -1,7 +1,7 @@
 class MainController < ApplicationController
   # calculate conversion of currency
   def calculate
-    response = {}
+    response = _newResponse
     from = params[:from_currency].upcase
     to = params[:to_currency].upcase
 
@@ -9,8 +9,8 @@ class MainController < ApplicationController
 
     # no rate data
     if conversion_rates.nil?
-      response['error'] = 'no data'
-      response['success'] = 'false'
+      _setError(response, 'no data')
+      _setSuccess(response, false)
       render json: response.to_json, status: (:service_unavailable) and return
     end
 
@@ -18,15 +18,15 @@ class MainController < ApplicationController
     begin
       amount = BigDecimal(params[:amount])
     rescue ArgumentError
-      response['error'] = 'invalid amount'
-      response['success'] = 'false'
+      _setError(response, 'invalid amount')
+      _setSuccess(response, false)
       render json: response.to_json, status: (:bad_request) and return
     end
 
     # invalid currency
     if not (conversion_rates[from] and conversion_rates[to])
-      response['error'] = 'unsupported currency'
-      response['success'] = 'false'
+      _setError(response, 'unsupported currency')
+      _setSuccess(response, false)
       render json: response.to_json, status: (:bad_request) and return
     end
 
@@ -37,61 +37,78 @@ class MainController < ApplicationController
     Money.add_rate(from, to, to_rate/from_rate)
     result = Money.from_amount(amount, from).exchange_to(to)
 
-    response['success'] = 'true'
-
-    payload = {}
-    payload['result'] = result.format
-    payload['result_raw'] = result.format(symbol: false, thousands_separator: false)
-    payload['symbol'] = result.format(format: '%u')
-    payload['last_update'] = Rails.cache.read('exchange_last_update').to_datetime
-    payload['next_update'] = Rails.cache.read('exchange_next_update').to_datetime
-    response['payload'] = payload
+    _setSuccess(response, true)
+    _setUpdateData(response)
+    _setData(response, 'result', result.format)
+    _setData(response, 'result_raw', result.format(symbol: false, thousands_separator: false))
+    _setData(response, 'symbol', result.format(format: '%u'))
 
     render json: response.to_json, status: (:ok) and return
   end
 
   # return raw rates
   def rates
-    response = {}
+    response = _newResponse
     conversion_rates = Rails.cache.read('exchange_conversion_rates')
 
     # rates are not yet populated
     if conversion_rates.nil?
-      response['success'] = 'false'
-      response['error'] = 'no data'
+      _setSuccess(response, false)
+      _setError(response, 'no data')
       render json: response.to_json, status: (:service_unavailable) and return
     end
-    response['success'] = 'true'
 
-    payload = {}
-    payload['result'] = conversion_rates
-    payload['last_update'] = Rails.cache.read('exchange_last_update').to_datetime
-    payload['next_update'] = Rails.cache.read('exchange_next_update').to_datetime
-    response['payload'] = payload
+    _setSuccess(response, true)
+    _setUpdateData(response)
+    _setData(response, 'result', conversion_rates)
 
     render json: response.to_json, status: (:ok) and return
   end
 
   def rootRoute
-    response = {}
+    response = _newResponse
 
-    response['success'] = 'true'
-
-    payload = {}
-    payload['example'] = request.original_url + '5.00/USD/CAD'
-    payload['usage'] = request.original_url + '{amount}/{currency_to_convert_from}/{currency_to_convert_to}'
-    response['payload'] = payload
+    _setSuccess(response, true)
+    _setHelpData(response)
 
     render json: response.to_json, status: (:ok) and return
   end
 
   def badRoute
-    response = {}
+    response = _newResponse
 
-    response['success'] = 'false'
-    response['error'] = 'invalid path'
+    _setSuccess(response, false)
+    _setError(response, 'invalid path')
+    _setHelpData(response)
 
     render json: response.to_json, status: (:bad_request) and return
   end
 
+
+  private
+    def _setData(response, field, result)
+      response['payload'][field] = result
+    end
+
+    def _setUpdateData(response)
+      response['update']['last_update'] = Rails.cache.read('exchange_last_update').to_datetime
+      response['update']['next_update'] = Rails.cache.read('exchange_next_update').to_datetime
+    end
+
+    def _setHelpData(response)
+      response['help']['example'] = request.original_url + '5.00/USD/CAD'
+      response['help']['usage'] = request.original_url + '{amount}/{currency_to_convert_from}/{currency_to_convert_to}'
+    end
+
+    def _setSuccess(response, success)
+      response['success'] = success ? 'true' : 'false'
+    end
+
+    def _setError(response, error)
+      response['error'] = error
+    end
+
+    def _newResponse()
+      return Hash.new { |response, key| response[key] = {} }
+    end
 end
